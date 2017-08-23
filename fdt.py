@@ -15,55 +15,66 @@ def getHTTPHeader():
                "x-country": "CN",
                "Accept-Language": "zh-Hans-US;q=1, zh-Hant-US;q=0.9, en-US;q=0.8",
                "Accept-Encoding": "gzip, deflate",
-               "User-Agent": "ForexMasterCN/5.4.160621001 (iPhone; iOS 9.3.2; Scale/2.00)"}
+               'Content-Type': 'application/json',
+               'Fdt-Did': '391B8D36-B885-4988-B0F9-FF788D339004',
+               'Connection': 'keep-alive',
+               "User-Agent": "FDTMasterCN/6.3.7.170821001 (iOS: 10.3)"}
     return headers
 
 def getUserPosts(username):
     headers = getHTTPHeader()
-    params = {'auth_token': auth_token, 'hits': '100', 'offset': '0', 'target_userid': username}
-    response = requests.post('http://prod.forexmaster.cn/social/v3/getUserWall', data=params, headers=headers)
+    requestURL = 'http://prod.forexmaster.cn/jsocial/post/getUserPostList?limit=100&targetUserId=%s' % username
+    response = requests.post(requestURL, headers=headers)
     content = json.loads(response.content)
-    return content['posts']
+    return content['data']['list']
 
 def postLikeRequest(postId):
-    params = {'auth_token': auth_token, 'post_id':  postId}
+    params = {'moduleKey': 'fdtPost', 'type': 'submit', 'moduleId':  postId}
+    str = json.dumps(params)
     headers = getHTTPHeader()
-
-    response = requests.post('http://prod.forexmaster.cn/social/v3/like', data=params, headers=headers)
+    response = requests.post('http://prod.forexmaster.cn/jsocial/universalLike/post', data=str, headers=headers)
     print '已经赞完帖子(%s) - %d' % (postId, response.status_code)
 
 def doCommentPost(postId):
-    params = {'auth_token': auth_token, 'post_id': postId, 'comment': '~'}
+    params = {'moduleKey': 'fdtPost',
+              'moduleId': postId,
+              'userNames': [],
+              'type': '0',
+              'symboleNames': [],
+              'comment': '~',
+              'userIds': []}
+    str = json.dumps(params)
     headers = getHTTPHeader()
-
-    response = requests.post('http://prod.forexmaster.cn/social/v3/comment', data=params, headers=headers)
+    response = requests.post('http://prod.forexmaster.cn/jsocial/universalComment/post', data=str, headers=headers)
     print '已经给他帖子留言(%s) - %d' % (postId, response.status_code)
 
 def doRepostPost(postId):
-    params = {'auth_token': auth_token, 'post_id': postId}
+    params = {'relayPostId': postId, 'originalPostId': postId}
+    str = json.dumps(params)
     headers = getHTTPHeader()
-
-    response = requests.post('http://prod.forexmaster.cn/social/v3/repost', data=params, headers=headers)
+    response = requests.post('http://prod.forexmaster.cn/jsocial/post/rePost', data=str, headers=headers)
     print '已经转发帖子(%s) - %d' % (postId, response.status_code)
 
 #发表帖子
 def doPost():
 
-    params = {'auth_token': auth_token,
-              'mention_currencies': '欧元/谢尔克',
-              'mention_symbols': 'EURILS.FX',
+    params = {'symbolIds': [],
+              'userNames': [],
+              'userIds': [],
+              'type': '0',
               'msg': '$欧元/谢尔克',
-              'tag': '524545E6-37E9-4BC3-A9FA-B5A3F1FE6442'}
+              'symbolNames': []}
+    str = json.dumps(params)
     headers = getHTTPHeader()
-    response = requests.post('http://prod.forexmaster.cn/social/v3/post', data=params, headers=headers)
+    response = requests.post('http://prod.forexmaster.cn/jsocial/post/posting', data=str, headers=headers)
     print '已经发布完帖子 - %d' % (response.status_code)
 
 #删除帖子
 def doDeletePost(postid):
-    params = {'auth_token': auth_token,
-              'postid': postid}
+    params = {'postId': postid}
+    str = json.dumps(params)
     headers = getHTTPHeader()
-    response = requests.post('http://prod.forexmaster.cn/social/v3/deletePost', data=params, headers=headers)
+    response = requests.post('http://prod.forexmaster.cn/jsocial/post/delPost', data=str, headers=headers)
     print '已经删除帖子(%s) - %d' % (postid, response.status_code)
 
 #赞某个用户所有的帖子
@@ -73,7 +84,7 @@ def doLikeAllPost(username):
     posts = getUserPosts(username)
 
     for post in posts:
-        postLikeRequest(post["postid"])
+        postLikeRequest(post["postId"])
 
     print '用户: %s 的帖子已经赞完' % (username)
 
@@ -86,7 +97,7 @@ def doDeleteAllPost(username):
             if 'repostid' in post.keys():
                 doDeletePost(post['repostid'])
             else:
-                doDeletePost(post["postid"])
+                doDeletePost(post["postId"])
 
         posts = getUserPosts(username)
 
@@ -97,7 +108,7 @@ def doCommentAllPost(username):
     posts = getUserPosts(username)
 
     for post in posts:
-        doCommentPost(post['postid'])
+        doCommentPost(post['postId'])
 
     print '已经给所有的帖子留言完毕'
 
@@ -108,19 +119,19 @@ def doRepostAllPost(username):
     posts = getUserPosts(username)
 
     for post in posts:
-        doRepostPost(post['postid'])
+        doRepostPost(post['postId'])
 
     print '已经转发所有的帖子'
 
 #########################################
 
 POST_ENABLED = 0
-LIKE_ENABLED = 1
+LIKE_ENABLED = 0
 COMMENT_ENABLED = 0
 REPOST_ENABLED = 0
-DELETE_ENABLED = 0
+DELETE_ENABLED = 1
 
-auth_token = 'LHf5pAnPl1cnXWQRyQZeJyXpaGt9YdXMrRkX0lfK2gXqAMQPEZqIMCuPXXtHGHnbTLVhDBposrgxiCQLqTbWwvplKbAaZmIcl2p7dozme7XkWgK5zgVsVsAWDscft0D61Ym8249vjFYbmyAKov/1nYyOHAZJ6AAptCypZDmTFy+wwKpAuYvOolM+mi08jpYWlEy4PLda5N7Bryyfw819CbfXzNCmNl7WZBIirMEfmtvIVl+T9iGeMIlNI/9jfxdauiZksXLZsrYA6JqpcQ6LJOqpfv78yHqxF6Q4ar3JdTnx9odCkLHApnBHks+qUowUp6bpnUrBlI+eAyqv3Ke8NQ=='
+auth_token = 'DQO1XOTWSf7VWSs2fhG/i8v8PWPVEO+E3iNJvDvY9tkwleP9CaMJRIG4JuyHOC7j/Qrz9Hoi96QGCESCtGXf4LakDlk/xEa2UzZygdHRSF1dwZiy4QJ+p7TcmGWk9pThdq7IPk7360/ogP1bMmoHGUeqAcL+zUX7t5xeRImu7ho5VC+UjHuotU+ZFjOtwYghMtFBjGqgpfC5iv1aGigR450Wf2MbpjRrO8unW1wUrQlzubN++XEE3yfrEfutqXUVuUF016uaVwj9sGgXg+yEMv5xGkIG0vVkI8NQuzDxvyT5xlQ6tj8OQPixsuXcO9c/WHfdPhgeeyBD1aKQo/SqLg=='
 deleteUser = 'mb000000001'
 
 
